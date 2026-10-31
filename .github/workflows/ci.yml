@@ -20,17 +20,18 @@ jobs:
         run: mvn -B verify
       - name: Generate disposable demo secrets
         run: |
-          echo "MSSQL_SA_PASSWORD=Ci_$(openssl rand -hex 16)!" > .env
+          echo "ORACLE_ADMIN_PASSWORD=Ci_$(openssl rand -hex 16)" > .env
+          echo "WALLET_DB_PASSWORD=Ci_$(openssl rand -hex 16)" >> .env
           echo "JWT_KEY=$(openssl rand -hex 32)" >> .env
           echo "FAKE_API_KEY=$(openssl rand -hex 24)" >> .env
-      - name: Start real SQL Server and both Java APIs
-        run: docker compose up --build -d
+      - name: Start isolated Oracle Free and both Java APIs
+        run: docker compose -f compose.yaml -f compose.oracle-test.yaml up --build -d
       - name: Real HTTP, money, concurrency, recovery and restart tests
         run: |
           set -a
           source .env
           set +a
-          TEST_RESTART=1 python3 tests/smoke.py
+          COMPOSE_FILE=compose.yaml:compose.oracle-test.yaml TEST_RESTART=1 python3 tests/smoke.py
       - name: Browser journey
         run: |
           python3 -m pip install playwright==1.58.0
@@ -45,7 +46,7 @@ jobs:
             test-results/
       - name: Container logs on failure
         if: failure()
-        run: docker compose logs --no-color --tail=150
+        run: docker compose -f compose.yaml -f compose.oracle-test.yaml logs --no-color --tail=150
       - name: Stop disposable CI environment
         if: always()
-        run: docker compose down -v
+        run: docker compose -f compose.yaml -f compose.oracle-test.yaml down -v

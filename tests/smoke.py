@@ -1,4 +1,4 @@
-"""Real HTTP + MSSQL integration tests. Run against a fresh Compose environment."""
+"""Real HTTP + Oracle Free integration tests. Run against a fresh, disposable Compose test environment."""
 import concurrent.futures
 import json
 import os

@@ -20,11 +20,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * TR: H2 üzerinde gerçek SQL/transaction ve JWT filtresi çalışır. Yalnızca uzak sağlayıcı mock'tur.
- * EN: H2 tests do not replace the separate SQL Server + real HTTP smoke test.
+ * EN: H2 Oracle-mode tests do not replace the separate Oracle Free + real HTTP smoke test.
  */
 @SpringBootTest(
     properties = {
-      "spring.datasource.url=jdbc:h2:mem:journey;MODE=MSSQLServer;DB_CLOSE_DELAY=-1",
+      "spring.datasource.url=jdbc:h2:mem:journey;MODE=Oracle;DB_CLOSE_DELAY=-1",
       "spring.datasource.driver-class-name=org.h2.Driver",
       "spring.datasource.username=sa",
       "spring.datasource.password=",
@@ -154,6 +154,8 @@ class WalletJourneyTest {
 
   @Test
   void httpRegistrationJwtValidationAndTopUp() throws Exception {
+    // TR: Oracle'a uygun DUAL sorgusu test DB'sinde de gerçekten çalışmalı.
+    mvc.perform(get("/health/ready")).andExpect(status().isOk());
     mvc.perform(get("/api/wallet")).andExpect(status().isUnauthorized());
     String body =
         json.writeValueAsString(

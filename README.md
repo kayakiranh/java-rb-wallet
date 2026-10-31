@@ -2,58 +2,71 @@
 
 RB Wallet'ın Java 25 / Spring Boot portu. Kayıt/giriş, otomatik TRY cüzdanı, bankadan yükleme, fraud kontrollü transfer, fatura sorgulama/ödeme, geçmiş, kalıcı fake servis, recovery, bildirim outbox ve aynı HTML/CSS/JavaScript arayüzü içerir.
 
-## Hızlı başlangıç — Docker
+## Yerel Oracle AI Database Free ile başlangıç
 
-Docker Engine/Desktop + Compose gerekir; SQL Server için x64 ortam kullanın.
+JDK 25, Maven 3.9+ ve çalışan Oracle AI Database Free gerekir. Varsayılan bağlantı `localhost:1521/FREEPDB1` ve uygulama kullanıcısı `RBWALLET` olarak ayarlanmıştır. JDBC Thin kullanıldığı için uygulamanın Oracle Instant Client/native DLL bağımlılığı yoktur.
 
-1. `.env.example` dosyasını `.env` olarak kopyalayın.
-2. SQL parolasını, en az 32 UTF-8 baytlık `JWT_KEY` değerini ve en az 24 karakterlik `FAKE_API_KEY` değerini farklı rastgele değerlerle değiştirin.
-3. Repo kökünde `docker compose up --build -d` çalıştırın.
+### 1. Uygulama kullanıcısını bir kez oluştur
 
-| Uygulama | Adres |
+SQL Developer'da **SYSTEM** kullanıcısıyla yeni bağlantı aç:
+
+| Alan | Değer |
 |---|---|
-| Cüzdan ekranı | http://localhost:5080 |
-| Wallet Swagger | http://localhost:5080/swagger |
-| Fake Swagger | http://localhost:5081/swagger |
-| SQL Server | localhost,1433 — RBWallet / sa |
+| Host | localhost |
+| Port | 1521 |
+| Connection type | Basic |
+| Service name | FREEPDB1 (SID seçme) |
+| Username | SYSTEM |
+| Password | Oracle kurulumunda belirlediğin yönetici parolası |
 
-Compose boşsa RBWallet veritabanını oluşturur; Flyway tabloları/migration geçmişini yönetir. SQL ve fake verileri volume'de korunur. `docker compose down` verileri korur. `down -v` verileri siler; yalnızca disposable test ortamında kullanın. API'ler root olmayan kullanıcıyla çalışır, portlar localhost'a bağlanır. Bu bir geliştirme demosudur.
+[docs/oracle/create-dev-user.sql](docs/oracle/create-dev-user.sql) dosyasında parola yer tutucusunu kendi uygulama parolanla değiştir, bu bağlantının worksheet'inde **F5 / Run Script** ile bir kez çalıştır. Script `RBWALLET` kullanıcısını 100 MB kota ve yalnızca gerekli CREATE SESSION / CREATE TABLE yetkileriyle oluşturur. Uygulama SYSTEM veya SYS ile çalıştırılmaz. Mevcut kullanıcı/veri silinmez.
 
-## IDE / terminal ile çalıştırma
+Oracle'da kullanıcı aynı zamanda şema sahibidir. SQL Server'daki gibi ayrı `CREATE DATABASE RBWallet` komutu çalıştırılmaz. Tabloları uygulama ilk açılışında Flyway oluşturur. Eski SQL Server veritabanı/hash/verileri bu yeni şemaya otomatik taşınmaz; önceki DDL yalnızca `docs/reference/sqlserver` altında referans olarak korunmuştur.
 
-**JDK 25 ve Maven 3.9+** yükleyin. IntelliJ IDEA'da kökteki `pom.xml` dosyasını açın; Project SDK ve Maven Runner JDK değerlerini 25 seçin. İki uygulama birbirinden bağımsızdır. Uygulama için Node.js gerekmez.
+### 2. IntelliJ IDEA ayarlarını gir
 
-Erişilebilir SQL Server'da önce boş `RBWallet` veritabanını oluşturun. Bu Java portu .NET EF tablolarını yerinde dönüştürmez: Java için ayrı boş veritabanı/volume kullanın. Aynı DB adı ve porttaki .NET Compose ile aynı anda başlatmayın.
+Kökteki `pom.xml` dosyasını aç. Project SDK ve Maven Runner JDK değerlerini **25** seç. İki Run Configuration oluştur: `WalletApplication` ve `FakeApplication`.
 
-Her uygulamanın Run Configuration → Environment Variables alanına ayarları girin:
+Run Configuration → **Environment Variables**:
 
-| Değişken | Wallet API | Fake Services API |
+| Değişken | WalletApplication | FakeApplication |
 |---|---|---|
-| `JWT_KEY` | En az 32 UTF-8 bayt | Gerekmez |
-| `FAKE_API_KEY` | Ortak anahtar | Aynı ortak anahtar |
-| `WALLET_DB_URL` | `jdbc:sqlserver://localhost:1433;databaseName=RBWallet;encrypt=true;trustServerCertificate=true` | Gerekmez |
-| `WALLET_DB_USER` | `sa` veya kendi SQL kullanıcınız | Gerekmez |
-| `MSSQL_SA_PASSWORD` | SQL kullanıcınızın parolası | Gerekmez |
-| `FAKE_BASE_URL` | `http://localhost:5081/` | Gerekmez |
-| `SPRING_PROFILES_ACTIVE` | İsteğe bağlı | `dev` |
-| `FAKE_STORAGE_PATH` | Gerekmez | İsteğe bağlı, varsayılan `data/fake-state.json` |
+| `WALLET_DB_URL` | `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` (varsayılan) | Gerekmez |
+| `WALLET_DB_USER` | `RBWALLET` (varsayılan) | Gerekmez |
+| `WALLET_DB_PASSWORD` | Scriptte belirlediğin uygulama parolası | Gerekmez |
+| `JWT_KEY` | En az 32 UTF-8 baytlık rastgele anahtar | Gerekmez |
+| `FAKE_API_KEY` | En az 24 karakterlik ortak anahtar | **Aynı** ortak anahtar |
+| `SPRING_PROFILES_ACTIVE` | Gerekmez | `dev` |
 
-`.env` dosyasını yalnızca Compose otomatik okur; IDE/Maven kendiliğinden okumaz. Java'da .NET User Secrets yerine IDE environment ayarlarını kullanıyoruz. Secrets dosyalarını commit etmeyin.
+`.env` dosyasını IDE ve Maven kendiliğinden okumaz; environment alanlarını doldur. Şifreleri `application.yml` veya Git'e yazma. Servis adı/port kuruluma göre farklıysa yalnızca `WALLET_DB_URL` değerini değiştir.
 
-Önce build:
+### 3. Build ve çalıştır
 
 ```sh
 mvn -B verify
 ```
 
-İki ayrı terminalde (ilgili environment değerlerini ayarladıktan sonra):
+Önce `FakeApplication.main`, sonra `WalletApplication.main` çalıştır. Alternatif olarak yukarıdaki environment değerleri tanımlı iki terminalde:
 
 ```sh
 java -jar fake-services-api/target/fake-services-api-1.0.0-SNAPSHOT.jar
 java -jar wallet-api/target/wallet-api-1.0.0-SNAPSHOT.jar
 ```
 
-Veya IDE'de `FakeApplication.main` ve `WalletApplication.main` çalıştırın. Fake API yalnızca `dev`/`test` profilinde açılır. Windows Authentication yerine örneklerde SQL Authentication kullanılır; Windows integrated JDBC ayrıca Microsoft'un native auth kurulumunu gerektirir.
+| Uygulama | Adres |
+|---|---|
+| Cüzdan ekranı | http://localhost:5080 |
+| Wallet Swagger | http://localhost:5080/swagger |
+| Fake Swagger | http://localhost:5081/swagger |
+| Oracle bağlantı kontrolü | http://localhost:5080/health/ready |
+
+Readiness, `SELECT 1 FROM dual` ile gerçek Oracle bağlantısını kontrol eder. Free sürümün kaynak sınırları için havuz en fazla 5 bağlantıdır. Migration'lar `db/migration/oracle` konumunda; para NUMBER(18,2), long değerler NUMBER(19), metinler VARCHAR2/NVARCHAR2 olarak saklanır. `wallet_number` kolon adı Oracle NUMBER anahtar sözcüğüyle çakışmayı önler; JSON alanı hâlâ `number` olarak kalır.
+
+## İsteğe bağlı: API'leri Docker ile çalıştır
+
+Oracle bilgisayarında kurulu kalır. `.env.example` dosyasını `.env` olarak kopyalayıp RBWALLET parolasını ve anahtarları değiştir. `docker compose up --build -d` yalnızca iki Java API'sini başlatır; ikinci Oracle kurmaz. Container → bilgisayar bağlantısı `host.docker.internal:1521/FREEPDB1` kullanır. Oracle listener'ın container bağlantısına açık olması gerekir. IDE yöntemi için Docker gerekmez.
+
+Fake veri `fake-data` volume'ünde kalır; Oracle verisi kendi yerel kurulumundadır. `docker compose down` verileri korur. İki uygulamayı aynı anda IDE ve Docker'da aynı portlarda başlatma.
 
 ## İlk finansal akış
 
@@ -89,13 +102,15 @@ Arayüz token'ı bellekte tutar. Son para isteği sekme depolamasında korunur; 
 
 ```sh
 mvn -B verify
-# Çalışan, temiz Compose ortamı ve FAKE_API_KEY gerekir:
+# Çalışan izole test Compose ortamı ve FAKE_API_KEY gerekir:
 python3 tests/smoke.py
 # Fake + Wallet restart da test edilsin:
 TEST_RESTART=1 python3 tests/smoke.py
 ```
 
-Maven testleri gerçek SQL transaction'larını H2 test veritabanında çalıştırır; HTTP/JWT için MockMvc, uzak sağlayıcı için mock kullanır. Fake kalıcılık/concurrency testleri ayrı geçici dosyalarda çalışır. H2, SQL Server doğrulamasının yerine geçmez. GitHub Actions ayrıca gerçek SQL Server + iki Java API ile HTTP smoke ve tarayıcı testlerini çalıştırır. İki smoke komutunu aynı veri üzerinde art arda çalıştırmayın.
+Maven testleri gerçek SQL transaction'larını H2 Oracle modunda test veritabanında çalıştırır; HTTP/JWT için MockMvc, uzak sağlayıcı için mock kullanır. Fake kalıcılık/concurrency testleri ayrı geçici dosyalarda çalışır. H2, Oracle Free doğrulamasının yerine geçmez. GitHub Actions ayrıca gerçek Oracle Free + iki Java API ile HTTP smoke ve tarayıcı testlerini çalıştırır. İki smoke komutunu aynı veri üzerinde art arda çalıştırmayın.
+
+CI, `compose.yaml` ve `compose.oracle-test.yaml` dosyalarını birlikte kullanır; ayrı Oracle Free container'ına bağlanır. Bilgisayarındaki kurulu Oracle testler tarafından kullanılmaz. Yerel test container'ını çalıştırmak için ayrıca `ORACLE_ADMIN_PASSWORD` tanımlayıp `docker compose -f compose.yaml -f compose.oracle-test.yaml up --build -d` kullan. Container restart smoke için `COMPOSE_FILE=compose.yaml:compose.oracle-test.yaml TEST_RESTART=1 python3 tests/smoke.py` (Linux/macOS/CI) kullanılır; bu testleri disposable verilerde çalıştır.
 
 `python3 -m pip install playwright==1.58.0`, `python3 -m playwright install chromium`, `python3 tests/ui.py` ile tarayıcı kontrolü yapılabilir. Python/Playwright yalnızca test aracıdır.
 

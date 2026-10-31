@@ -65,6 +65,16 @@ Java parolaları BCrypt ile hash'ler. BCrypt 72 UTF-8 bayt sınırında validati
 - `release version 25 not supported`: Maven Java 17/21 kullanıyordur; `mvn -version` ile JAVA_HOME'u kontrol et.
 - `JWT_KEY ...`: değişkeni Wallet Run Configuration'a ekle; .env IDE tarafından okunmaz.
 - Fake 401: iki uygulamadaki `FAKE_API_KEY` farklı veya eksiktir.
-- SQL bağlantı hatası: önce DB oluştur, SQL Authentication ve portu kontrol et.
+- Oracle bağlantı hatası: FREEPDB1 servisini, RBWALLET kullanıcısını, listener/1521 portunu ve uygulama parolasını kontrol et.
 - Fatura zaten ödenmiş: aynı fake verisindeki global fatura ikinci kez ödenemez.
 - 202: yeni requestKey ile yeniden para işlemi oluşturma; mevcut işlemi sorgula/resume et.
+
+## Oracle geliştirmesi nasıl bağlanıyor?
+
+`ojdbc17` Maven bağımlılığı Oracle JDBC Thin sürücüsünü getirir. JDK 25 ile kullanılan bu sürücü ayrıca native DLL istemez. `application.yml` varsayılan olarak `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` adresine gider. FREEPDB1 servis adı, RBWALLET ise kullanıcı/şemadır; ikisi farklı kavramdır. `FREE` root container'a bağlanır; uygulama tablolarını PDB içinde tutuyoruz.
+
+`docs/oracle/create-dev-user.sql` yönetici tarafından bir kez çalıştırılır. Sonra uygulama RBWALLET olarak bağlanır ve Flyway yalnızca Oracle migration klasörünü çalıştırır. SQL Server DDL'indeki bigint, nvarchar, decimal gibi tipler Oracle'da NUMBER(19), NVARCHAR2, NUMBER(18,2) olur. `DEFAULT 0 NOT NULL` sözdizimi ve NUMBER anahtar sözcüğü gibi farklar yüzünden sadece JDBC URL değiştirmek yeterli değildi.
+
+Readiness sorgusunda `SELECT 1 FROM dual` vardır; DUAL Oracle'ın tek satırlık yardımcı tablosudur. Tarihler UTC epoch millis olarak NUMBER(19) içinde kalır; NLS_DATE_FORMAT ayarından etkilenmez. Oracle boş string değerini NULL sayar; API'de zorunlu metin alanları @NotBlank ile boş gönderilemez.
+
+H2 testleri Oracle modunda yeni Oracle migration'ını çalıştırır. Bunlar Oracle sunucusu değildir; GitHub CI ayrıca gerçek Oracle Free üzerinde aynı HTTP ve yarış senaryolarını doğrular.

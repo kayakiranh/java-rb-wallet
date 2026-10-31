@@ -59,7 +59,7 @@ public class WalletStore {
               email,
               hash);
           jdbc.update(
-              "INSERT INTO wallets(id,user_id,number) VALUES(?,?,?)",
+              "INSERT INTO wallets(id,user_id,wallet_number) VALUES(?,?,?)",
               UUID.randomUUID().toString(),
               id,
               UUID.randomUUID().toString().replace("-", ""));
@@ -67,8 +67,9 @@ public class WalletStore {
         });
   }
 
+  /** TR: Oracle bağlantı kontrolünde tek satırlık DUAL tablosu kullanılır. */
   public boolean ready() {
-    return Integer.valueOf(1).equals(jdbc.queryForObject("SELECT 1", Integer.class));
+    return Integer.valueOf(1).equals(jdbc.queryForObject("SELECT 1 FROM dual", Integer.class));
   }
 
   private static final RowMapper<Wallet> WALLET =
@@ -76,7 +77,7 @@ public class WalletStore {
           new Wallet(
               r.getString("id"),
               r.getString("user_id"),
-              r.getString("number"),
+              r.getString("wallet_number"),
               r.getBigDecimal("balance"),
               r.getBigDecimal("reserved"),
               r.getLong("version"));
@@ -122,7 +123,7 @@ public class WalletStore {
   }
 
   public Wallet recipient(String number) {
-    return jdbc.query("SELECT * FROM wallets WHERE number=?", WALLET, number).stream()
+    return jdbc.query("SELECT * FROM wallets WHERE wallet_number=?", WALLET, number).stream()
         .findFirst()
         .orElseThrow(() -> new BusinessException("Alıcı cüzdan bulunamadı.", 404));
   }

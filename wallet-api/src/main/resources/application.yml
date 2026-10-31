@@ -4,17 +4,22 @@ spring:
   application:
     name: wallet-api
   datasource:
-    url: ${WALLET_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=RBWallet;encrypt=true;trustServerCertificate=true}
-    username: ${WALLET_DB_USER:sa}
-    password: ${MSSQL_SA_PASSWORD:}
+    url: ${WALLET_DB_URL:jdbc:oracle:thin:@//localhost:1521/FREEPDB1}
+    username: ${WALLET_DB_USER:RBWALLET}
+    password: ${WALLET_DB_PASSWORD:}
     hikari:
-      maximum-pool-size: 10
+      # TR: Free sürümün 2 CPU / 2 GB DB sınırı için küçük bir bağlantı havuzu.
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
   task:
     scheduling:
       pool:
         size: 2
   flyway:
     enabled: true
+    # TR: Oracle DDL ayrı konumdadır; SQL Server migration geçmişiyle karışmaz.
+    locations: classpath:db/migration/oracle
   jackson:
     serialization:
       write-dates-as-timestamps: false
