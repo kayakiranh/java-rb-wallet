@@ -62,7 +62,7 @@ public class WalletStore {
               "INSERT INTO wallets(id,user_id,number) VALUES(?,?,?)",
               UUID.randomUUID().toString(),
               id,
-              "W" + UUID.randomUUID().toString().replace("-", "").substring(0, 24));
+              UUID.randomUUID().toString().replace("-", ""));
           return id;
         });
   }

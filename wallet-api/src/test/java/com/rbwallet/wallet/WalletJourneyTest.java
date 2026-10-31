@@ -63,6 +63,7 @@ class WalletJourneyTest {
   @Test
   void happyPathReplayConflictAndRecipientHistory() {
     String alice = user(), bob = user();
+    assertEquals(32, service.wallet(alice).number().length());
     UUID key = UUID.randomUUID();
     var top = new TopUp(key, new BigDecimal("1000"), "DEMO-ACCOUNT");
     assertEquals("Completed", service.topUp(alice, top).status());
@@ -92,6 +93,7 @@ class WalletJourneyTest {
   @Test
   void timeoutReservesFundsAndRecoveryCreditsOnlyOnce() {
     String alice = user(), bob = user();
+    assertEquals(32, service.wallet(alice).number().length());
     service.topUp(alice, new TopUp(UUID.randomUUID(), new BigDecimal("1000"), "DEMO-ACCOUNT"));
     when(fake.execute(any()))
         .thenThrow(new org.springframework.web.client.ResourceAccessException("timeout"));
@@ -128,6 +130,7 @@ class WalletJourneyTest {
   @Test
   void concurrentTransfersCannotOverspend() throws Exception {
     String alice = user(), bob = user();
+    assertEquals(32, service.wallet(alice).number().length());
     service.topUp(alice, new TopUp(UUID.randomUUID(), new BigDecimal("1000"), "DEMO-ACCOUNT"));
     String recipient = db.wallet(bob).number();
     try (var pool = Executors.newFixedThreadPool(2)) {
