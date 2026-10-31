@@ -1,0 +1,7 @@
+**/target/
+.env
+.idea/
+*.iml
+data/
+*.log
+test-results/

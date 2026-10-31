@@ -1,0 +1,54 @@
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD}
+    ports: ["127.0.0.1:1433:1433"]
+    volumes: ["wallet-sql:/var/opt/mssql"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+  sql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["/opt/mssql-tools18/bin/sqlcmd -S sql -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q \"IF DB_ID('RBWallet') IS NULL CREATE DATABASE RBWallet\""]
+  fake:
+    build:
+      context: .
+      dockerfile: fake-services-api/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      FAKE_API_KEY: ${FAKE_API_KEY:?Set FAKE_API_KEY}
+      FAKE_STORAGE_PATH: /app/data/fake-state.json
+    ports: ["127.0.0.1:5081:5081"]
+    volumes: ["fake-data:/app/data"]
+  wallet:
+    build:
+      context: .
+      dockerfile: wallet-api/Dockerfile
+    environment:
+      WALLET_DB_URL: "jdbc:sqlserver://sql:1433;databaseName=RBWallet;encrypt=true;trustServerCertificate=true"
+      WALLET_DB_USER: sa
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      JWT_KEY: ${JWT_KEY:?Set JWT_KEY}
+      FAKE_BASE_URL: http://fake:5081/
+      FAKE_API_KEY: ${FAKE_API_KEY}
+    ports: ["127.0.0.1:5080:5080"]
+    depends_on:
+      sql-init:
+        condition: service_completed_successfully
+      fake:
+        condition: service_started
+volumes:
+  wallet-sql:
+  fake-data:

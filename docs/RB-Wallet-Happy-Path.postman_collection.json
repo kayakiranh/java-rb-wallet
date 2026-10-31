@@ -1,0 +1,809 @@
+{
+  "info": {
+    "name": "RB Wallet - Current Happy Path",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run in order against a clean demo database and fake state. Set fakeApiKey to the configured shared key. Creates unique users per run; bill 10001 is globally payable once. Expect Alice 650 TRY and Bob 200 TRY. Tokens and request keys are captured automatically. Notifications are asynchronous; inspect the final two requests again after delivery. Do not run against production."
+  },
+  "variable": [
+    {
+      "key": "walletBaseUrl",
+      "value": "http://localhost:5080",
+      "type": "string"
+    },
+    {
+      "key": "fakeBaseUrl",
+      "value": "http://localhost:5081",
+      "type": "string"
+    },
+    {
+      "key": "fakeApiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subscriberNumber",
+      "value": "10001",
+      "type": "string"
+    },
+    {
+      "key": "aliceEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bobEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "aliceToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bobToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bobWallet",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topUpKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "transferKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "billKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "topUpId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Wallet database ready",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/health/ready",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Fake service ready",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{fakeApiKey}}"
+          }
+        ],
+        "url": "{{fakeBaseUrl}}/health",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Register Alice",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Alice Demo\",\n  \"email\": \"{{aliceEmail}}\",\n  \"password\": \"DemoPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const run = pm.variables.replaceIn(\"{{$guid}}\");",
+              "pm.collectionVariables.set(\"aliceEmail\", \"alice-\" + run + \"@example.test\");",
+              "pm.collectionVariables.set(\"bobEmail\", \"bob-\" + run + \"@example.test\");",
+              "[\"topUpKey\", \"transferKey\", \"billKey\"].forEach(k => pm.collectionVariables.set(k, pm.variables.replaceIn(\"{{$guid}}\")));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"aliceToken\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Register Bob",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Bob Demo\",\n  \"email\": \"{{bobEmail}}\",\n  \"password\": \"DemoPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bobToken\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Login Alice",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{aliceEmail}}\",\n  \"password\": \"DemoPassword123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"aliceToken\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Read Bob wallet",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/wallet",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{bobToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bobWallet\", pm.response.json().number);",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().balance).to.eql(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Top up Alice 1000",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/wallet/top-ups",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{topUpKey}}\",\n  \"amount\": 1000,\n  \"bankAccount\": \"DEMO-ACCOUNT\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });",
+              "pm.collectionVariables.set(\"topUpId\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Replay same top up",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/wallet/top-ups",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{topUpKey}}\",\n  \"amount\": 1000,\n  \"bankAccount\": \"DEMO-ACCOUNT\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"topUpId\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Conflicting top up",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/wallet/top-ups",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{topUpKey}}\",\n  \"amount\": 2000,\n  \"bankAccount\": \"DEMO-ACCOUNT\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Transfer 200 to Bob",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/transfers",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{transferKey}}\",\n  \"amount\": 200,\n  \"recipientWalletNumber\": \"{{bobWallet}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Query unpaid bill",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/bills/{{subscriberNumber}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().paid).to.eql(false); pm.expect(pm.response.json().amount).to.eql(150); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Pay bill 150",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/bills/payments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{billKey}}\",\n  \"subscriberNumber\": \"{{subscriberNumber}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Replay bill payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{walletBaseUrl}}/api/bills/payments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"requestKey\": \"{{billKey}}\",\n  \"subscriberNumber\": \"{{subscriberNumber}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Verify Alice 650",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/wallet",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { const w = pm.response.json(); pm.expect(w.balance).to.eql(650); pm.expect(w.available).to.eql(650); pm.expect(w.reserved).to.eql(0); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Verify Bob 200",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/wallet",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{bobToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().balance).to.eql(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Verify paid bill",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/bills/{{subscriberNumber}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().paid).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Transaction history",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/transactions?page=1",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json()).to.have.lengthOf(3); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Find original top up",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/transactions/by-request/{{topUpKey}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Expected result\", () => { pm.expect(pm.response.json().status).to.eql(\"Completed\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Cross-user isolation",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/transactions/by-request/{{topUpKey}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{bobToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Notification delivery status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{walletBaseUrl}}/api/notifications",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{aliceToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Fake received notifications",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Api-Key",
+            "value": "{{fakeApiKey}}"
+          }
+        ],
+        "url": "{{fakeBaseUrl}}/api/notification/messages",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
