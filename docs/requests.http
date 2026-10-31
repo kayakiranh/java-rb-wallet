@@ -1,0 +1,69 @@
+@wallet = http://localhost:5080
+@fake = http://localhost:5081
+@token = REPLACE_WITH_ALICE_TOKEN
+@bobWallet = REPLACE_WITH_BOB_WALLET_NUMBER
+@fakeApiKey = REPLACE_WITH_FAKE_API_KEY
+
+### Register Alice; repeat with bob@example.test for Bob
+POST {{wallet}}/api/auth/register
+Content-Type: application/json
+
+{"name":"Alice Demo","email":"alice@example.test","password":"DemoPassword123!"}
+
+### Login
+POST {{wallet}}/api/auth/login
+Content-Type: application/json
+
+{"email":"alice@example.test","password":"DemoPassword123!"}
+
+### Wallet (use Bob's token to get his wallet number)
+GET {{wallet}}/api/wallet
+Authorization: Bearer {{token}}
+
+### Top up 1000; replay this exact body to check idempotency
+POST {{wallet}}/api/wallet/top-ups
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"requestKey":"c9855840-cc82-4a18-853f-98c0a73c2615","amount":1000,"bankAccount":"DEMO-ACCOUNT"}
+
+### Transfer 200
+POST {{wallet}}/api/transfers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"requestKey":"5db09936-e681-40a5-b695-98dffb344146","amount":200,"recipientWalletNumber":"{{bobWallet}}"}
+
+### Query bill
+GET {{wallet}}/api/bills/10001
+Authorization: Bearer {{token}}
+
+### Pay 150 bill (amount is read from provider, not trusted from client)
+POST {{wallet}}/api/bills/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"requestKey":"d948ca61-4099-4a4e-9fc1-a4b5ccbf4fc3","subscriberNumber":"10001"}
+
+### History
+GET {{wallet}}/api/transactions?page=1
+Authorization: Bearer {{token}}
+
+### Notifications (fake only)
+GET {{fake}}/api/notification/messages
+X-Api-Key: {{fakeApiKey}}
+
+### Own notification delivery status
+GET {{wallet}}/api/notifications
+Authorization: Bearer {{token}}
+
+### Own original request result
+GET {{wallet}}/api/transactions/by-request/c9855840-cc82-4a18-853f-98c0a73c2615
+Authorization: Bearer {{token}}
+
+### Fail the next notification once; worker will retry automatically
+PUT {{fake}}/api/scenarios/notification-failures
+X-Api-Key: {{fakeApiKey}}
+Content-Type: application/json
+
+{"count":1}
