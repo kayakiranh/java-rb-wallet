@@ -1,0 +1,13 @@
+server:
+  port: ${PORT:5081}
+spring:
+  application:
+    name: fake-services-api
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+fake:
+  api-key: ${FAKE_API_KEY:}
+  storage-path: ${FAKE_STORAGE_PATH:data/fake-state.json}
+springdoc:
+  swagger-ui:
+    path: /swagger

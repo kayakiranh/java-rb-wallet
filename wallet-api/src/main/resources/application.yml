@@ -1,0 +1,29 @@
+server:
+  port: ${PORT:5080}
+spring:
+  application:
+    name: wallet-api
+  datasource:
+    url: ${WALLET_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=RBWallet;encrypt=true;trustServerCertificate=true}
+    username: ${WALLET_DB_USER:sa}
+    password: ${MSSQL_SA_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+  task:
+    scheduling:
+      pool:
+        size: 2
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+wallet:
+  jwt-key: ${JWT_KEY:}
+  issuer: rb-wallet
+  audience: rb-wallet-client
+  fake-url: ${FAKE_BASE_URL:http://localhost:5081/}
+  fake-key: ${FAKE_API_KEY:}
+springdoc:
+  swagger-ui:
+    path: /swagger

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RB Wallet · Dijital cüzdan</title><link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script></head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="RB Wallet ana sayfa"><span class="brand-icon">rb</span> wallet<span class="demo">DEMO</span></a>
+    <div class="sidebar-copy"><span class="eyebrow">DAHA SADE FİNANS</span><h1>Paran.<br>Kontrolün.<br>Cüzdanın.</h1><p>Tek bir yerden bakiye takibi, para transferi ve fatura ödemeleri.</p></div>
+    <div class="side-note"><span class="dot"></span> Test ortamı<p>Bu uygulama sanal para ve örnek servislerle çalışır. Gerçek ödeme yapılmaz.</p></div>
+    <a class="api-link" href="/swagger">API dokümantasyonu ↗</a>
+  </aside>
+  <main>
+    <header><div><span class="eyebrow">DİJİTAL CÜZDANIN</span><h2 id="page-title">Hoş geldin.</h2></div><button id="logout" class="secondary" hidden>Çıkış yap</button></header>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section id="auth" class="auth-card">
+      <div class="tabs" role="group" aria-label="Hesap erişimi"><button id="login-tab" class="selected" type="button">Giriş yap</button><button id="register-tab" type="button">Hesap oluştur</button></div>
+      <h3 id="auth-title">Cüzdanına giriş yap</h3><p class="muted">Bakiyen ve tüm işlemlerin bir arada.</p>
+      <form id="auth-form">
+        <label id="name-label" hidden>Ad soyad<input id="name" name="name" autocomplete="name" minlength="2" maxlength="100"></label>
+        <label>E-posta<input id="email" name="email" type="email" autocomplete="username" maxlength="254" required placeholder="sen@ornek.com"></label>
+        <label>Parola<input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required placeholder="Parolanı gir"></label>
+        <p id="password-help" class="hint" hidden>En az 12 karakter kullan.</p>
+        <button class="primary" id="auth-submit" type="submit">Giriş yap →</button>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="balance-grid"><article class="balance-card"><span>Kullanılabilir bakiye</span><strong id="available">—</strong><span class="balance-footer">Türk lirası · TRY</span></article><article class="summary-card"><div><span>Toplam bakiye</span><strong id="balance">—</strong></div><div><span>Bekleyen ödemeler</span><strong id="reserved">—</strong></div></article></div>
+      <div class="wallet-number"><div><span class="eyebrow">CÜZDAN NUMARAN</span><code id="wallet-number"></code></div><button id="copy-number" class="secondary" type="button">Kopyala</button></div>
+      <div id="retry-banner" class="retry-banner" hidden><p>Son isteğin sonucu henüz kesinleşmedi. Yeni bir para işlemi başlatmadan önce kontrol et.</p><button id="retry" type="button" class="secondary">Son işlemi kontrol et</button></div>
+      <nav class="tabs action-tabs" aria-label="Cüzdan işlemleri"><button class="selected" data-panel="topup" type="button">Para yükle</button><button data-panel="transfer" type="button">Para gönder</button><button data-panel="bill" type="button">Fatura öde</button></nav>
+      <div class="action-card">
+        <form id="topup-form" data-form="topup"><h3>Cüzdanına para yükle</h3><p class="muted">Test banka hesabından sanal bakiye aktar.</p><div class="form-grid"><label>Banka hesabı<select id="bank-account"><option value="DEMO-ACCOUNT">Demo banka hesabı</option value="TIMEOUT">Gecikmeli işlem senaryosu</option value="REJECT">Reddedilen işlem senaryosu</option></select></label><label>Tutar (TRY)<input id="topup-amount" type="number" min="0.01" max="1000000" step="0.01" required placeholder="1.000,00"></label></div><button class="primary" type="submit">Para yükle</button></form>
+        <form id="transfer-form" data-form="transfer" hidden><h3>Para gönder</h3><p class="muted">Alıcının cüzdan numarasıyla anında transfer yap.</p><div class="form-grid"><label>Alıcı cüzdan numarası<input id="recipient" maxlength="32" minlength="32" required placeholder="32 karakterlik cüzdan numarası"></label><label>Tutar (TRY)<input id="transfer-amount" type="number" min="0.01" max="1000000" step="0.01" required placeholder="200,00"></label></div><button class="primary" type="submit">Transfer yap</button></form>
+        <div id="bill-form" data-form="bill" hidden><h3>Faturalarını öde</h3><p class="muted">Örnek aboneler: 10001 (150 TL), 10002 (250 TL).</p><form id="bill-query-form"><div class="form-grid"><label>Abone numarası<input id="subscriber" maxlength="50" required placeholder="10001"></label><button class="secondary" type="submit">Fatura sorgula</button></div></form><div id="bill-result" hidden><div><span id="bill-description"></span><strong id="bill-amount"></strong></div><button id="pay-bill" class="primary" type="button">Faturayı öde</button></div></div>
+      </div>
+      <section class="history"><div class="section-title"><div><span class="eyebrow">HESAP HAREKETLERİ</span><h3>İşlem geçmişi</h3></div><button id="refresh" class="secondary" type="button">Yenile</button></div><div class="table-wrap"><table><thead><tr><th>İşlem</th><th>Tarih</th><th>Durum</th><th class="right">Tutar</th></tr></thead><tbody id="transactions"></tbody></table></div><p id="empty-history" class="empty" hidden>Henüz bir işlemin yok. İlk bakiyeni yükleyerek başlayabilirsin.</p><div class="pagination"><button id="previous" class="secondary" type="button">← Önceki</button><span id="page-number">1. sayfa</span><button id="next" class="secondary" type="button">Sonraki →</button></div></section>
+      <p class="footnote">Bekleyen işlemler otomatik kontrol edilir. Yenile düğmesiyle güncel sonucu görebilirsin.</p>
+    </section>
+    <footer>RB Wallet <span>Basit. Anlaşılır. Kontrol sende.</span></footer>
+  </main>
+</div>
+</body></html>
