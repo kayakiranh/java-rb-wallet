@@ -7,6 +7,12 @@ import java.io.IOException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Outbox worker'ın çağırdığı idempotent bildirim sağlayıcısı fake'i.
+ *
+ * <p>{@code operationId:userId} birleşimi duplicate teslimatı engeller. Bu davranış, en az bir kez
+ * teslimat yapan Outbox Pattern'de consumer idempotency gereksinimini görünür kılar.
+ */
 @RestController
 @RequestMapping("/api/notification")
 public class NotificationController {
@@ -17,6 +23,7 @@ public class NotificationController {
   }
 
   @PostMapping("/messages")
+  /** Mesajı bir kez kaydeder; ayarlanmış geçici hata varsa 503 üretir. */
   public ResponseEntity<?> send(@Valid @RequestBody Notification request) throws IOException {
     if (request.operationId().equals(new java.util.UUID(0, 0))
         || request.userId().equals(new java.util.UUID(0, 0)))
@@ -27,6 +34,7 @@ public class NotificationController {
   }
 
   @GetMapping("/messages")
+  /** Testlerin teslim edilen mesajları doğrulaması için kayıtları listeler. */
   public java.util.List<Notification> list() {
     return store.messages();
   }

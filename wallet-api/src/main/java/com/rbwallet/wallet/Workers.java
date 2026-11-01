@@ -24,6 +24,10 @@ public class Workers {
   @Scheduled(
       fixedDelayString = "${wallet.recovery-delay-ms:5000}",
       initialDelayString = "${wallet.recovery-delay-ms:5000}")
+  /**
+   * Zamanı gelmiş Pending işlemleri aynı operation id ile uzlaştırır. fixedDelay seçimi, uzun süren
+   * turun bir sonraki turla üst üste binmesini azaltır.
+   */
   public void recover() {
     for (var t : db.pending())
       try {
@@ -37,6 +41,7 @@ public class Workers {
   @Scheduled(
       fixedDelayString = "${wallet.notification-delay-ms:2000}",
       initialDelayString = "${wallet.notification-delay-ms:2000}")
+  /** Outbox mesajlarını en az bir kez teslim eder; consumer idempotency duplicate'i güvenli kılar. */
   public void notifications() {
     for (var n : db.dueNotifications()) {
       boolean success;

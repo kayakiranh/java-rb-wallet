@@ -13,11 +13,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Component
 public class AuthRateLimitFilter extends OncePerRequestFilter {
+  /** Dakika kovası + sayaç; immutable record concurrent map güncellemelerini sadeleştirir. */
   private record Window(long minute, int count) {}
 
   private final ConcurrentHashMap<String, Window> requests = new ConcurrentHashMap<>();
 
   @Override
+  /**
+   * Yalnızca register/login isteklerine IP bazlı sabit pencere limiti uygular ve temel güvenlik
+   * header'larını ekler. Demo için process-memory'dedir; çoklu pod production'da Redis/API Gateway
+   * gibi ortak limiter gerekir.
+   */
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {

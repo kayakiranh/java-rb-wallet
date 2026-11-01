@@ -6,6 +6,13 @@ import jakarta.validation.Valid;
 import java.io.IOException;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Bankadan cüzdana para yükleme sağlayıcısını taklit eden REST adapter'ı.
+ *
+ * <p>Aynı operationId ile gelen çağrılar FakeStore tarafından idempotent karşılanır. TIMEOUT
+ * senaryosunda sonuç önce kalıcılaştırılıp cevap geciktirilir; böylece gerçek dünyadaki “işlendi ama
+ * cevap kayboldu” durumu test edilir. .NET'teki ayrı fake ASP.NET Core Controller'a denktir.
+ */
 @RestController
 @RequestMapping("/api/bank")
 public class BankController {
@@ -16,6 +23,7 @@ public class BankController {
   }
 
   @PostMapping("/top-ups")
+  /** Banka yüklemesini bir kez işler ve seçili demo senaryosunu uygular. */
   public ExternalResult topUp(@Valid @RequestBody ExternalOperation request)
       throws IOException, InterruptedException {
     var result = store.execute("bank", request);

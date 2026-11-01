@@ -28,10 +28,12 @@ public class WalletStore {
     this.transactions = transactions;
   }
 
+  /** Lambda içindeki tüm SQL komutlarını tek commit/rollback sınırında çalıştırır. */
   public <T> T atomic(Supplier<T> work) {
     return transactions.execute(status -> work.get());
   }
 
+  /** Auth katmanının ihtiyaç duyduğu en dar kullanıcı projection'ı. */
   public record UserCredentials(String id, String passwordHash) {}
 
   /** TR: Auth SQL de Store içinde kalır; proxy nesnesinin field'larına dışarıdan erişilmez. */
@@ -46,6 +48,7 @@ public class WalletStore {
         .orElse(null);
   }
 
+  /** Kullanıcı ve ilk TRY cüzdanını tek transaction içinde oluşturur. */
   public String registerUser(String name, String email, String hash) {
     return atomic(
         () -> {
@@ -112,22 +115,29 @@ public class WalletStore {
               Instant.ofEpochMilli(r.getLong("next_attempt_at")),
               r.getString("last_error"));
 
+  /** JWT subject üzerinden cüzdanı bulur; yokluğu 404 domain hatasına çevirir. */
   public Wallet wallet(String userId) {
     return jdbc.query("SELECT * FROM wallets WHERE user_id=?", WALLET, userId).stream()
         .findFirst()
         .orElseThrow(() -> new BusinessException("Cüzdan bulunamadı.", 404));
   }
 
+  /** İç transaction akışları için primary key ile cüzdanı getirir. */
   public Wallet walletById(String id) {
     return jdbc.queryForObject("SELECT * FROM wallets WHERE id=?", WALLET, id);
   }
 
+  /** Dışarı açık cüzdan numarasını transfer alıcısına çözer. */
   public Wallet recipient(String number) {
     return jdbc.query("SELECT * FROM wallets WHERE wallet_number=?", WALLET, number).stream()
         .findFirst()
         .orElseThrow(() -> new BusinessException("Alıcı cüzdan bulunamadı.", 404));
   }
 
+  /**
+   * Aynı wallet+requestKey kaydını getirir; anahtar farklı payload ile kullanılmışsa 409 verir.
+   * Böylece idempotency yanlış key reuse'u da kontrol eder.
+   */
   public Operation existing(
       String walletId, String key, String kind, String target, BigDecimal amount) {
     Operation t =
@@ -148,12 +158,14 @@ public class WalletStore {
     return t;
   }
 
+  /** Operation id ile finansal kaydı getirir. */
   public Operation operation(String id) {
     return jdbc.query("SELECT * FROM wallet_transactions WHERE id=?", OP, id).stream()
         .findFirst()
         .orElseThrow(() -> new BusinessException("İşlem bulunamadı.", 404));
   }
 
+  /** Kullanıcı cüzdanı + idempotency key ile işlemi getirir. */
   public Operation byRequest(String walletId, String key) {
     return jdbc
         .query(
@@ -166,6 +178,7 @@ public class WalletStore {
         .orElseThrow(() -> new BusinessException("İşlem bulunamadı.", 404));
   }
 
+  /** Yeni finansal durum geçişini işlem satırı olarak kaydeder. */
   public Operation insert(
       Wallet w,
       String key,
@@ -211,6 +224,7 @@ public class WalletStore {
       throw new BusinessException("Eşzamanlı işlem. Aynı RequestKey ile tekrar deneyin.", 409);
   }
 
+  /** Finansal transaction ile aynı transaction içinde bildirim outbox kaydı ekler. */
   public void outbox(String userId, String transactionId) {
     jdbc.update(
         "INSERT INTO notifications(id,transaction_id,user_id,next_attempt_at) VALUES(?,?,?,?)",
@@ -220,6 +234,7 @@ public class WalletStore {
         System.currentTimeMillis());
   }
 
+  /** Pending işlemi kesin sonuca geçirip bakiye, rezervasyon ve outbox'ı atomik günceller. */
   public Operation finish(String id, ExternalResult result) {
     return atomic(
         () -> {
@@ -250,6 +265,7 @@ public class WalletStore {
         });
   }
 
+  /** Provider sonucu belirsiz işlemin recovery zamanını exponential backoff ile erteler. */
   public void defer(String id) {
     atomic(
         () -> {
@@ -268,6 +284,7 @@ public class WalletStore {
         });
   }
 
+  /** Worker'ın sınırlı batch halinde işleyeceği zamanı gelmiş Pending kayıtları getirir. */
   public List<Operation> pending() {
     return jdbc.query(
         "SELECT * FROM wallet_transactions WHERE status='Pending' AND next_attempt_at<=? ORDER BY"
@@ -276,6 +293,7 @@ public class WalletStore {
         System.currentTimeMillis());
   }
 
+  /** Kullanıcı işlem geçmişini sabit sayfa boyutuyla döndürür. */
   public List<TransactionResponse> history(String userId, int page) {
     if (page < 1 || page > 10000) throw new BusinessException("Geçersiz sayfa.");
     Wallet w = wallet(userId);
@@ -292,6 +310,7 @@ public class WalletStore {
         .toList();
   }
 
+  /** Teslim zamanı gelmiş outbox bildirimlerini worker için listeler. */
   public List<Delivery> dueNotifications() {
     return jdbc.query(
         "SELECT * FROM notifications WHERE delivered_at IS NULL AND next_attempt_at<=? ORDER BY"
@@ -300,6 +319,7 @@ public class WalletStore {
         System.currentTimeMillis());
   }
 
+  /** Kullanıcının bildirim teslimat geçmişini döndürür. */
   public List<Delivery> notifications(String userId) {
     return jdbc.query(
         "SELECT * FROM notifications WHERE user_id=? ORDER BY next_attempt_at DESC OFFSET 0 ROWS"
@@ -308,6 +328,7 @@ public class WalletStore {
         userId);
   }
 
+  /** Bildirim denemesini başarı veya bir sonraki retry zamanı ile kaydeder. */
   public void delivered(Delivery n, boolean success) {
     // TR: Başka worker teslim ettiyse geciken başarısız cevap teslim bilgisini silemez.
     jdbc.update(

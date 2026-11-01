@@ -16,11 +16,13 @@ public class AuthController {
     this.service = service;
   }
 
+  /** Kullanıcı + TRY cüzdanı oluşturur ve ilk access token'ı döndürür. */
   @PostMapping("/register")
   public Contracts.Token register(@Valid @RequestBody Contracts.Register request) {
     return service.register(request);
   }
 
+  /** BCrypt parola kontrolünden sonra yeni, kısa ömürlü access token üretir. */
   @PostMapping("/login")
   public Contracts.Token login(@Valid @RequestBody Contracts.Login request) {
     return service.login(request);
