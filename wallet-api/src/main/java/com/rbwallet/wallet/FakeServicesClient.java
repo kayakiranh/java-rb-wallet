@@ -18,6 +18,7 @@ public class FakeServicesClient {
     this.http = http;
   }
 
+  /** Transfer/fatura tutarı için dış fraud kararını alır. */
   public FraudResult fraud(java.math.BigDecimal amount) {
     return Objects.requireNonNull(
         http.post()
@@ -27,6 +28,7 @@ public class FakeServicesClient {
             .body(FraudResult.class));
   }
 
+  /** Abone faturasını sorgular ve provider 404'ünü domain hatasına çevirir. */
   public Bill bill(String subscriber) {
     try {
       return Objects.requireNonNull(
@@ -39,6 +41,7 @@ public class FakeServicesClient {
     }
   }
 
+  /** Timeout sonrası sağlayıcının operation id ile sakladığı kesin sonucu arar. */
   public ExternalResult find(String id) {
     try {
       return Objects.requireNonNull(
@@ -48,6 +51,7 @@ public class FakeServicesClient {
     }
   }
 
+  /** İşlem türüne göre banka veya fatura endpointine aynı operation id ile komut yollar. */
   public ExternalResult execute(Operation t) {
     String path = t.kind().equals("TopUp") ? "/api/bank/top-ups" : "/api/billing/payments";
     return Objects.requireNonNull(
@@ -58,6 +62,7 @@ public class FakeServicesClient {
             .body(ExternalResult.class));
   }
 
+  /** Outbox teslimatını idempotent bildirim sağlayıcısına gönderir. */
   public void notify(Delivery n) {
     http.post()
         .uri("/api/notification/messages")

@@ -18,6 +18,7 @@ public class ScenariosController {
   }
 
   @PutMapping("/notification-failures")
+  /** Sonraki N bildirim çağrısını 503 yaparak Outbox retry davranışını test eder. */
   public ResponseEntity<Void> failures(@Valid @RequestBody FailureScenario request)
       throws IOException {
     store.failNext(request.count());

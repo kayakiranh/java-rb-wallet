@@ -16,9 +16,16 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** TR: Fake API kullanıcı JWT'si yerine iki servis arasındaki ortak X-Api-Key ile korunur. */
+/**
+ * Fake API güvenlik ve OpenAPI yapılandırması.
+ *
+ * <p>Kullanıcı JWT'si yerine servisler arası ortak X-Api-Key kullanılır. Filter, .NET custom
+ * authentication middleware/handler karşılığıdır. Fake'in dev/test dışında başlamaması production'a
+ * yanlışlıkla demo sağlayıcı bağlama riskini azaltır.
+ */
 @Configuration
 public class FakeConfig {
+  /** Stateless güvenlik zincirini kurar ve API key'i sabit süreli karşılaştırmayla doğrular. */
   @Bean
   SecurityFilterChain security(
       HttpSecurity http, @Value("${fake.api-key}") String key, Environment env) throws Exception {
@@ -52,6 +59,7 @@ public class FakeConfig {
         .build();
   }
 
+  /** Swagger/OpenAPI ekranına X-Api-Key şemasını ekler. */
   @Bean
   OpenAPI openApi() {
     return new OpenAPI()

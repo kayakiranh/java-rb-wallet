@@ -29,11 +29,13 @@ import org.springframework.web.client.RestClient;
  */
 @Configuration
 public class AppConfig {
+  /** BCrypt'i cost=12 ile singleton bean olarak kaydeder; .NET PasswordHasher rolündedir. */
   @Bean
   PasswordEncoder passwords() {
     return new BCryptPasswordEncoder(12);
   }
 
+  /** Environment'tan gelen secret'ı HS256 anahtarına çevirir ve zayıf anahtarı startup'ta reddeder. */
   @Bean
   SecretKeySpec signingKey(@Value("${wallet.jwt-key}") String key) {
     byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
@@ -41,11 +43,13 @@ public class AppConfig {
     return new SecretKeySpec(bytes, "HmacSHA256");
   }
 
+  /** JWT üreten Nimbus adapter'ını DI container'a kaydeder. */
   @Bean
   JwtEncoder jwtEncoder(SecretKeySpec key) {
     return new NimbusJwtEncoder(new ImmutableSecret<>(key));
   }
 
+  /** İmza yanında issuer, audience ve süre doğrulayan JWT decoder oluşturur. */
   @Bean
   JwtDecoder jwtDecoder(
       SecretKeySpec key,
@@ -65,6 +69,10 @@ public class AppConfig {
     return decoder;
   }
 
+  /**
+   * Stateless API security pipeline'ını kurar. C#'taki AddAuthentication/AddAuthorization ve
+   * middleware sırasının Spring Security karşılığıdır.
+   */
   @Bean
   SecurityFilterChain security(HttpSecurity http) throws Exception {
     return http.csrf(csrf -> csrf.disable())
@@ -81,6 +89,10 @@ public class AppConfig {
         .build();
   }
 
+  /**
+   * Java 11+ HttpClient tabanlı Spring RestClient oluşturur. .NET IHttpClientFactory typed client
+   * gibi base URL, API key ve timeout politikalarını tek noktada toplar.
+   */
   @Bean
   RestClient fakeHttp(
       @Value("${wallet.fake-url}") String baseUrl, @Value("${wallet.fake-key}") String key) {
@@ -106,6 +118,7 @@ public class AppConfig {
         .build();
   }
 
+  /** Swagger/OpenAPI ekranına Bearer JWT güvenlik şemasını ekler. */
   @Bean
   OpenAPI openApi() {
     return new OpenAPI()

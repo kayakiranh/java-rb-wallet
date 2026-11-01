@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class WalletApplication {
+  /** Spring context ve embedded Tomcat'i başlatır; .NET Program.Main karşılığıdır. */
   public static void main(String[] args) {
     SpringApplication.run(WalletApplication.class, args);
   }

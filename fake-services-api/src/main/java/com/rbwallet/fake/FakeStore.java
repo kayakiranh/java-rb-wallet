@@ -29,6 +29,10 @@ public class FakeStore implements AutoCloseable {
 
   public record Saved(String kind, ExternalOperation request, ExternalResult result) {}
 
+  /**
+   * JSON'a yazılan aggregate state. Public alanlar Jackson'ın sade serialization ihtiyacı içindir;
+   * production domain modeli örneği değildir.
+   */
   public static class State {
     public int version = 1;
     public Map<String, Saved> operations = new HashMap<>();
@@ -46,6 +50,7 @@ public class FakeStore implements AutoCloseable {
                 "TIMEOUT",
                 new Bill("TIMEOUT", new BigDecimal("150"), false)));
 
+    /** Copy-on-write için bağımsız koleksiyonlarla yeni state üretir. */
     State copy() {
       State n = new State();
       n.version = version;
@@ -86,15 +91,21 @@ public class FakeStore implements AutoCloseable {
     processLock = acquired;
   }
 
+  /** Demo faturayı okur; synchronized aynı JVM içindeki concurrent erişimi seri hale getirir. */
   public synchronized Bill bill(String subscriber) {
     return state.bills.get(subscriber);
   }
 
+  /** Daha önce kalıcılaştırılmış provider sonucunu operation id ile getirir. */
   public synchronized ExternalResult operation(UUID id) {
     Saved saved = state.operations.get(id.toString());
     return saved == null ? null : saved.result();
   }
 
+  /**
+   * Provider işlemini idempotent uygular; yeni state diske başarıyla yazılmadan RAM state'i
+   * değiştirilmez.
+   */
   public synchronized Execution execute(String kind, ExternalOperation request) throws IOException {
     String id = request.operationId().toString();
     Saved old = state.operations.get(id);
@@ -140,6 +151,7 @@ public class FakeStore implements AutoCloseable {
     return new Execution(result, request.target().equals("TIMEOUT"));
   }
 
+  /** operationId+userId consumer key'iyle bildirimi bir kez kaydeder. */
   public synchronized boolean notify(Notification request) throws IOException {
     String key = request.operationId() + ":" + request.userId();
     if (state.notifications.containsKey(key)) return true;
@@ -154,10 +166,12 @@ public class FakeStore implements AutoCloseable {
     return true;
   }
 
+  /** Kaydedilmiş bildirimlerin immutable snapshot'ını döndürür. */
   public synchronized List<Notification> messages() {
     return List.copyOf(state.notifications.values());
   }
 
+  /** Retry testleri için sıradaki N bildirimi geçici başarısızlığa ayarlar. */
   public synchronized void failNext(int count) throws IOException {
     if (count < 0 || count > 20) throw new IllegalArgumentException("count 0..20 olmalı");
     State next = state.copy();
@@ -165,6 +179,7 @@ public class FakeStore implements AutoCloseable {
     save(next);
   }
 
+  /** Temporary file + atomic rename ile crash sırasında yarım JSON bırakma riskini azaltır. */
   private void save(State next) throws IOException {
     Path temp = Path.of(path + ".tmp");
     try (var file =
@@ -182,6 +197,7 @@ public class FakeStore implements AutoCloseable {
     state = next;
   }
 
+  /** Process lock ve channel kaynaklarını Spring kapanışında serbest bırakır. */
   @PreDestroy
   @Override
   public void close() throws IOException {

@@ -22,10 +22,15 @@ public class WalletService {
     this.fake = fake;
   }
 
+  /** Kullanıcının cüzdan persistence modelini dış API bakiye görünümüne dönüştürür. */
   public WalletResponse wallet(String userId) {
     return db.wallet(userId).response();
   }
 
+  /**
+   * Idempotent para yükleme kaydını kısa transaction'da Pending oluşturur; dış banka çağrısını
+   * transaction dışında tamamlar. Bu orchestration/Application Service desenidir.
+   */
   public TransactionResponse topUp(String userId, TopUp request) {
     MoneyRules.validate(request.requestKey(), request.amount());
     Operation t =
@@ -54,6 +59,10 @@ public class WalletService {
     return complete(t).response(null);
   }
 
+  /**
+   * Fraud kontrolünden sonra iki cüzdan bakiyesini ve outbox kayıtlarını tek transaction'da
+   * günceller. Optimistic concurrency aynı bakiyenin iki kez harcanmasını engeller.
+   */
   public TransactionResponse transfer(String userId, Transfer request) {
     MoneyRules.validate(request.requestKey(), request.amount());
     Wallet initial = db.wallet(userId);
@@ -103,12 +112,17 @@ public class WalletService {
         });
   }
 
+  /** Abone formatını doğrulayıp fatura sağlayıcısına yönlendirir. */
   public Bill bill(String subscriber) {
     if (subscriber == null || subscriber.isBlank() || subscriber.length() > 50)
       throw new BusinessException("Geçersiz abone numarası.");
     return fake.bill(subscriber);
   }
 
+  /**
+   * Sağlayıcıdan güvenilen tutarı alır, bakiyeyi rezerve eder ve Pending ödemeyi recovery'ye uygun
+   * şekilde tamamlar. İstemcinin ödeme tutarını değiştirmesine izin verilmez.
+   */
   public TransactionResponse payBill(String userId, BillPayment request) {
     if (request.requestKey().equals(new UUID(0, 0)))
       throw new BusinessException("RequestKey boş olamaz.");
@@ -153,6 +167,7 @@ public class WalletService {
     return complete(t).response(null);
   }
 
+  /** Yalnızca işlem sahibinin Pending kaydını aynı operation id ile uzlaştırır. */
   public TransactionResponse resume(String userId, String id) {
     Operation t = db.operation(id);
     if (!db.wallet(userId).id().equals(t.walletId()))
@@ -160,6 +175,7 @@ public class WalletService {
     return complete(t).response(null);
   }
 
+  /** Idempotency requestKey üzerinden kullanıcıya ait güncel işlem sonucunu getirir. */
   public TransactionResponse byRequest(String userId, String key) {
     Wallet w = db.wallet(userId);
     return db.byRequest(w.id(), key).response(w.id());

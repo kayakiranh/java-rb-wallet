@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
             .class)
 public class FakeApplication {
+  /** Spring context ve embedded Tomcat'i başlatır; .NET Program.Main karşılığıdır. */
   public static void main(String[] args) {
     SpringApplication.run(FakeApplication.class, args);
   }

@@ -31,6 +31,10 @@ public class AuthService {
     this.audience = audience;
   }
 
+  /**
+   * Girdiyi normalize eder, parolayı BCrypt ile hash'ler ve kullanıcı+cüzdanı atomik oluşturur.
+   * Hash hesaplama CPU maliyeti nedeniyle SQL transaction başlamadan yapılır.
+   */
   public Contracts.Token register(Contracts.Register request) {
     String email = request.email().trim().toLowerCase(Locale.ROOT), name = request.name().trim();
     if (name.length() < 2) throw new BusinessException("İsim en az iki karakter olmalı.");
@@ -42,6 +46,7 @@ public class AuthService {
     return token(id);
   }
 
+  /** Kimlik bilgisini sabit bir hata mesajıyla doğrular; hesap varlığını dışarı sızdırmaz. */
   public Contracts.Token login(Contracts.Login request) {
     var user = db.credentials(request.email().trim().toLowerCase(Locale.ROOT));
     if (request.password().getBytes(StandardCharsets.UTF_8).length > 72
@@ -51,6 +56,7 @@ public class AuthService {
     return token(user.id());
   }
 
+  /** HS256 ile 30 dakikalık JWT üretir; subject kullanıcı kimliğidir. */
   private Contracts.Token token(String userId) {
     Instant now = Instant.now(), expires = now.plus(30, ChronoUnit.MINUTES);
     var claims =
